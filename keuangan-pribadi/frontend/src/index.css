@@ -147,7 +147,7 @@ button:disabled {
 
 .ringkasan {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
   margin-top: 16px;
 }
@@ -162,6 +162,75 @@ button:disabled {
 
 .kartu strong {
   font-size: 1.15rem;
+}
+
+.kartu small {
+  font-size: 0.8rem;
+}
+
+.kartu .tautan {
+  justify-self: start;
+  font-size: 0.85rem;
+}
+
+.teks-aman {
+  color: #15803d;
+}
+
+.teks-bahaya {
+  color: #b91c1c;
+}
+
+.kartu-batas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #eff6ff;
+}
+
+.kartu-batas div {
+  display: grid;
+  gap: 6px;
+}
+
+.kartu-batas strong {
+  font-size: 1.25rem;
+}
+
+.daftar-grup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.grup-kartu {
+  padding: 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.grup-kartu h4 {
+  margin: 0 0 8px;
+}
+
+.grup-kartu ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.grup-kartu li {
+  margin: 4px 0;
+}
+
+.grup-kartu .kosong {
+  margin: 0;
+  color: #64748b;
 }
 
 h3 {
@@ -204,4 +273,42 @@ h3 {
 
 .tombol-unduh button {
   width: auto;
+}
+
+.tautan-auth {
+  margin-top: 16px;
+  color: #475569;
+}
+
+.tautan {
+  padding: 0;
+  background: none;
+  color: #2563eb;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.tautan:hover {
+  color: #1d4ed8;
+}
+
+.pilih-grup {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.pilih-grup button {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.pilih-grup button.grup-aktif {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.tombol-dashboard {
+  display: flex;
+  margin-top: 24px;
 }

@@ -3,6 +3,7 @@ import Header from './components/Header.jsx';
 import Beranda from './pages/Beranda.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Login from './pages/Login.jsx';
+import Register from './pages/Register.jsx';
 import Transaksi from './pages/Transaksi.jsx';
 
 const API_URL = '';
@@ -10,7 +11,15 @@ const API_URL = '';
 // App menyimpan status login dan halaman yang sedang dibuka.
 export default function App() {
   const [pengguna, setPengguna] = useState(null);
-  const [halaman, setHalaman] = useState('dashboard');
+  const [halaman, setHalaman] = useState('beranda');
+  const [modeAuth, setModeAuth] = useState('login');
+
+  // Setelah login/register berhasil, arahkan ke beranda.
+  function tanganiLogin(data) {
+    setPengguna(data);
+    setHalaman('beranda');
+    setModeAuth('login');
+  }
 
   async function keluar() {
     try {
@@ -20,7 +29,8 @@ export default function App() {
       });
     } finally {
       setPengguna(null);
-      setHalaman('dashboard');
+      setHalaman('beranda');
+      setModeAuth('login');
     }
   }
 
@@ -39,13 +49,21 @@ export default function App() {
             {halaman === 'transaksi' ? (
               <Transaksi />
             ) : halaman === 'beranda' ? (
-              <Beranda pengguna={pengguna} />
+              <Beranda pengguna={pengguna} onKeDashboard={() => setHalaman('dashboard')} />
             ) : (
-              <Dashboard />
+              <Dashboard onKeBeranda={() => setHalaman('beranda')} />
             )}
           </>
+        ) : modeAuth === 'register' ? (
+          <Register
+            onLogin={tanganiLogin}
+            onSwitchToLogin={() => setModeAuth('login')}
+          />
         ) : (
-          <Login onLogin={setPengguna} />
+          <Login
+            onLogin={tanganiLogin}
+            onSwitchToRegister={() => setModeAuth('register')}
+          />
         )}
       </main>
     </div>

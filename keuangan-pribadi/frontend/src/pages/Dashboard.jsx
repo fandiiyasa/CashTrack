@@ -14,61 +14,32 @@ async function bacaJson(respons) {
   return isi;
 }
 
-// Dashboard: state menyimpan ringkasan, alert, dan form batas anggaran.
-export default function Dashboard() {
+// Dashboard: ringkasan dan realisasi batas total bulan berjalan.
+export default function Dashboard({ onKeBeranda }) {
   const [data, setData] = useState(null);
-  const [kategori, setKategori] = useState([]);
-  const [form, setForm] = useState({ kategori_id: '', batas: '' });
   const [pesan, setPesan] = useState('');
   const [memuat, setMemuat] = useState(true);
 
-  async function muatData() {
-    const opsi = { credentials: 'include' };
-    const [dashboard, daftarKategori] = await Promise.all([
-      fetch(`${API_URL}/api/dashboard`, opsi).then(bacaJson),
-      fetch(`${API_URL}/api/kategori`, opsi).then(bacaJson),
-    ]);
-    setData(dashboard);
-    setKategori(daftarKategori.filter((item) => item.tipe === 'keluar'));
-  }
-
   // useEffect mengambil data sekali saat halaman dashboard dibuka.
   useEffect(() => {
-    muatData()
+    fetch(`${API_URL}/api/dashboard`, { credentials: 'include' })
+      .then(bacaJson)
+      .then(setData)
       .catch((error) => setPesan(error.message))
       .finally(() => setMemuat(false));
   }, []);
-
-  async function simpanAnggaran(event) {
-    event.preventDefault();
-    setPesan('');
-    try {
-      await fetch(`${API_URL}/api/anggaran`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kategori_id: form.kategori_id,
-          batas: form.batas,
-          bulan: data.bulan,
-        }),
-      }).then(bacaJson);
-      setForm({ kategori_id: '', batas: '' });
-      await muatData();
-    } catch (error) {
-      setPesan(error.message);
-    }
-  }
 
   if (memuat) {
     return <section className="halaman"><p>Memuat dashboard...</p></section>;
   }
 
+  const adaBatas = data?.batas_total !== null && data?.batas_total !== undefined;
+
   return (
     <section className="halaman">
       <h2>Dashboard Bulan {data?.bulan}</h2>
 
-      <AlertAnggaran daftar={data?.alert} />
+      <AlertAnggaran daftar={data?.alert} adaBatas={adaBatas} />
 
       <div className="ringkasan">
         <div className="kartu">
@@ -83,6 +54,22 @@ export default function Dashboard() {
           <span>Saldo</span>
           <strong>{rupiah(data?.saldo || 0)}</strong>
         </div>
+        <div className="kartu">
+          <span>Batas Total</span>
+          <strong>{adaBatas ? rupiah(data.batas_total) : 'Belum diatur'}</strong>
+          {adaBatas && (
+            <small className={data.terlampaui ? 'teks-bahaya' : 'teks-aman'}>
+              {data.terlampaui
+                ? `Melebihi ${rupiah(Math.abs(data.sisa_batas))}`
+                : `Sisa ${rupiah(data.sisa_batas)}`}
+            </small>
+          )}
+          {onKeBeranda && (
+            <button type="button" className="tautan" onClick={onKeBeranda}>
+              {adaBatas ? 'Edit batas' : 'Atur batas'}
+            </button>
+          )}
+        </div>
       </div>
 
       <h3>Pengeluaran per Kategori</h3>
@@ -90,57 +77,47 @@ export default function Dashboard() {
         <thead>
           <tr>
             <th>Kategori</th>
+            <th>Grup</th>
             <th>Total</th>
-            <th>Batas</th>
-            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           {data?.per_kategori.map((item) => (
             <tr key={item.kategori_id}>
               <td>{item.nama}</td>
+              <td>{item.grup}</td>
               <td>{rupiah(item.total)}</td>
-              <td>{item.batas === null ? '-' : rupiah(item.batas)}</td>
-              <td>
-                {item.terlampaui ? (
-                  <span className="badge-bahaya">Melebihi</span>
-                ) : (
-                  <span className="badge-aman">Aman</span>
-                )}
-              </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <h3>Atur Batas Anggaran</h3>
-      <form className="form" onSubmit={simpanAnggaran}>
-        <label>
-          Kategori
-          <select
-            value={form.kategori_id}
-            onChange={(event) => setForm({ ...form, kategori_id: event.target.value })}
-            required
-          >
-            <option value="">Pilih kategori</option>
-            {kategori.map((item) => (
-              <option key={item.id} value={item.id}>{item.nama}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Batas (Rp)
-          <input
-            type="number"
-            min="1"
-            step="0.01"
-            value={form.batas}
-            onChange={(event) => setForm({ ...form, batas: event.target.value })}
-            required
-          />
-        </label>
-        <button type="submit">Simpan Batas</button>
-      </form>
+      {data?.per_kategori.length === 0 && (
+        <p>Belum ada pengeluaran pada bulan ini.</p>
+      )}
+
+      <h3>Pengeluaran per Grup</h3>
+      <table className="tabel">
+        <thead>
+          <tr>
+            <th>Grup</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data?.per_grup.map((item) => (
+            <tr key={item.grup}>
+              <td>{item.grup}</td>
+              <td>{rupiah(item.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {data?.per_grup.length === 0 && (
+        <p>Belum ada pengeluaran pada bulan ini.</p>
+      )}
+
       {pesan && <p className="pesan">{pesan}</p>}
 
       <UnduhLaporan bulan={data?.bulan} />

@@ -4,7 +4,7 @@ import { useState } from 'react';
 const API_URL = '';
 
 // Form login: useState menyimpan input, pesan, dan status loading.
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, onSwitchToRegister }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pesan, setPesan] = useState('');
@@ -65,6 +65,12 @@ export default function Login({ onLogin }) {
         </button>
       </form>
       {pesan && <p className="pesan">{pesan}</p>}
+      <p className="tautan-auth">
+        Belum punya akun?{' '}
+        <button type="button" className="tautan" onClick={onSwitchToRegister}>
+          Daftar
+        </button>
+      </p>
     </section>
   );
 }

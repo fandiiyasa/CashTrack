@@ -2,14 +2,16 @@ import { useState } from 'react';
 
 const API_URL = '';
 
-// Komponen unduh laporan: file diambil dari API memakai cookie session.
+// Komponen unduh laporan: file PDF diambil dari API memakai cookie session.
 export default function UnduhLaporan({ bulan }) {
   const [pesan, setPesan] = useState('');
+  const [memuat, setMemuat] = useState(false);
 
-  async function unduh(jenis) {
+  async function unduh() {
     setPesan('');
+    setMemuat(true);
     try {
-      const respons = await fetch(`${API_URL}/api/laporan/${jenis}?bulan=${bulan}`, {
+      const respons = await fetch(`${API_URL}/api/laporan/pdf?bulan=${bulan}`, {
         credentials: 'include',
       });
       if (!respons.ok) {
@@ -22,23 +24,26 @@ export default function UnduhLaporan({ bulan }) {
       const url = URL.createObjectURL(blob);
       const tautan = document.createElement('a');
       tautan.href = url;
-      tautan.download = `laporan-transaksi-${bulan}.${jenis === 'pdf' ? 'pdf' : 'xlsx'}`;
+      tautan.download = `laporan-transaksi-${bulan}.pdf`;
       document.body.appendChild(tautan);
       tautan.click();
       tautan.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
       setPesan(error.message);
+    } finally {
+      setMemuat(false);
     }
   }
 
   return (
     <section className="unduh">
       <h3>Unduh Laporan</h3>
-      <p>Laporan transaksi bulan {bulan} beserta ringkasannya.</p>
+      <p>Laporan transaksi bulan {bulan} beserta ringkasannya dalam bentuk PDF bertabel.</p>
       <div className="tombol-unduh">
-        <button type="button" onClick={() => unduh('pdf')}>Unduh PDF</button>
-        <button type="button" onClick={() => unduh('excel')}>Unduh Excel</button>
+        <button type="button" onClick={unduh} disabled={memuat}>
+          {memuat ? 'Menyiapkan...' : 'Unduh PDF'}
+        </button>
       </div>
       {pesan && <p className="pesan">{pesan}</p>}
     </section>

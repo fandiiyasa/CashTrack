@@ -1,50 +1,81 @@
 import { Router } from 'express';
 import pool from '../db.js';
+import { KATEGORI_TOTAL } from '../utils/kategori.js';
+import { bulanBerjalan } from '../utils/bulan.js';
 
 const router = Router();
 
-// GET /api/anggaran — semua batas anggaran milik pengguna yang login.
-router.get('/', async (req, res) => {
+// Cari kategori khusus batas total, buat jika belum ada.
+// Kategori ini tidak muncul di form transaksi.
+async function idKategoriTotal() {
+  const cari = await pool.query(
+    'SELECT id FROM kategori WHERE nama = $1 AND tipe = $2 LIMIT 1',
+    [KATEGORI_TOTAL, 'keluar']
+  );
+  if (cari.rowCount > 0) return cari.rows[0].id;
+
+  const buat = await pool.query(
+    'INSERT INTO kategori (nama, tipe) VALUES ($1, $2) RETURNING id',
+    [KATEGORI_TOTAL, 'keluar']
+  );
+  return buat.rows[0].id;
+}
+
+// GET /api/anggaran/total?bulan=YYYY-MM — batas total pengeluaran satu bulan.
+router.get('/total', async (req, res) => {
+  const bulan = req.query.bulan || bulanBerjalan();
+  if (!/^\d{4}-\d{2}$/.test(bulan)) {
+    return res.status(400).json({ pesan: 'bulan harus berformat YYYY-MM' });
+  }
+
   try {
     const hasil = await pool.query(
-      `SELECT a.id, a.kategori_id, k.nama AS kategori_nama, a.bulan, a.batas
+      `SELECT a.id, a.bulan, a.batas
        FROM anggaran a
        JOIN kategori k ON k.id = a.kategori_id
-       WHERE a.user_id = $1
-       ORDER BY a.bulan DESC, k.id`,
-      [req.user_id]
+       WHERE a.user_id = $1 AND a.bulan = $2 AND k.nama = $3
+       LIMIT 1`,
+      [req.user_id, bulan, KATEGORI_TOTAL]
     );
-    res.json(hasil.rows.map((baris) => ({ ...baris, batas: Number(baris.batas) })));
+
+    const baris = hasil.rows[0];
+    res.json({ bulan, batas: baris ? Number(baris.batas) : null });
   } catch (error) {
-    console.error('Gagal mengambil anggaran:', error.message);
-    res.status(500).json({ pesan: 'Gagal mengambil anggaran' });
+    console.error('Gagal mengambil batas total:', error.message);
+    res.status(500).json({ pesan: 'Gagal mengambil batas total' });
   }
 });
 
-// POST /api/anggaran — buat atau perbarui batas (UPSERT) untuk satu bulan.
-router.post('/', async (req, res) => {
-  const { kategori_id, bulan, batas } = req.body || {};
+// POST /api/anggaran/total — simpan atau perbarui batas total (UPSERT).
+// Satu baris per pengguna per bulan; batas bisa diedit kapan saja.
+router.post('/total', async (req, res) => {
+  const { bulan, batas } = req.body || {};
 
-  if (!kategori_id || !/^\d{4}-\d{2}$/.test(bulan || '')) {
-    return res.status(400).json({ pesan: 'kategori_id dan bulan wajib diisi (YYYY-MM)' });
+  if (!/^\d{4}-\d{2}$/.test(bulan || '')) {
+    return res.status(400).json({ pesan: 'bulan wajib diisi (YYYY-MM)' });
   }
-  if (Number(batas) <= 0) {
+  if (!(Number(batas) > 0)) {
     return res.status(400).json({ pesan: 'batas harus lebih dari 0' });
   }
 
   try {
+    const kategoriId = await idKategoriTotal();
     const hasil = await pool.query(
       `INSERT INTO anggaran (user_id, kategori_id, bulan, batas)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (user_id, kategori_id, bulan)
        DO UPDATE SET batas = EXCLUDED.batas
        RETURNING id, kategori_id, bulan, batas`,
-      [req.user_id, kategori_id, bulan, Number(batas)]
+      [req.user_id, kategoriId, bulan, Number(batas)]
     );
-    res.status(201).json({ ...hasil.rows[0], batas: Number(hasil.rows[0].batas) });
+
+    res.status(201).json({
+      ...hasil.rows[0],
+      batas: Number(hasil.rows[0].batas),
+    });
   } catch (error) {
-    console.error('Gagal menyimpan anggaran:', error.message);
-    res.status(500).json({ pesan: 'Gagal menyimpan anggaran' });
+    console.error('Gagal menyimpan batas total:', error.message);
+    res.status(500).json({ pesan: 'Gagal menyimpan batas total' });
   }
 });
 
