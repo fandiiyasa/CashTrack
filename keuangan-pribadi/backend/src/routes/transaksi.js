@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import pool from '../db.js';
+import { idKategoriTotal } from '../utils/batasTotal.js';
 
 const router = Router();
 
@@ -11,11 +12,15 @@ const PILIH_DETAIL = `SELECT t.id, t.kategori_id, k.nama AS kategori_nama,
   WHERE t.id = $1 AND t.user_id = $2`;
 
 // Validasi bersama untuk POST dan PUT.
-function validasiTransaksi(req, res) {
+async function validasiTransaksi(req, res) {
   const { kategori_id, tipe, nominal, tanggal } = req.body || {};
 
   if (!kategori_id || !tipe || !nominal || !tanggal) {
     res.status(400).json({ pesan: 'kategori_id, tipe, nominal, dan tanggal wajib diisi' });
+    return false;
+  }
+  if (Number(kategori_id) === (await idKategoriTotal())) {
+    res.status(400).json({ pesan: 'Kategori khusus batas total tidak boleh dipakai transaksi' });
     return false;
   }
   if (!['masuk', 'keluar'].includes(tipe)) {
@@ -68,7 +73,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/transaksi — user_id diambil dari session, bukan dari body.
 router.post('/', async (req, res) => {
-  if (!validasiTransaksi(req, res)) return;
+  if (!(await validasiTransaksi(req, res))) return;
   const { kategori_id, tipe, nominal, tanggal, catatan } = req.body;
 
   try {
@@ -87,7 +92,7 @@ router.post('/', async (req, res) => {
 
 // PUT /api/transaksi/:id — hanya transaksi milik sendiri yang boleh diubah.
 router.put('/:id', async (req, res) => {
-  if (!validasiTransaksi(req, res)) return;
+  if (!(await validasiTransaksi(req, res))) return;
   const { kategori_id, tipe, nominal, tanggal, catatan } = req.body;
 
   try {

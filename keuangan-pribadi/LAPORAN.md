@@ -10,13 +10,13 @@ Pencatatan keuangan pribadi sering kali masih dilakukan secara manual sehingga s
 
 - Membangun aplikasi web yang dapat mencatat pemasukan dan pengeluaran per pengguna.
 - Menyediakan autentikasi berbasis session cookie dengan password ter-hash.
-- Menampilkan dashboard bulan berjalan beserta alert saat anggaran terlampaui.
+- Menampilkan dashboard bulan berjalan beserta **Batas Total** pengeluaran bulanan dan alert saat terlampaui.
 - Menghasilkan laporan transaksi dalam format PDF dan Excel.
 - Menyusun dokumentasi yang mudah dipahami untuk keperluan laporan kuliah.
 
 ### 1.3 Ruang lingkup
 
-Aplikasi mencakup registrasi/login, CRUD transaksi, pengelolaan kategori, pengelolaan batas anggaran bulanan, dashboard, dan ekspor laporan. Tidak termasuk fitur multi-role, transfer antar pengguna, notifikasi email, atau deployment produksi.
+Aplikasi mencakup registrasi/login, CRUD transaksi, pengelolaan kategori, batas total pengeluaran bulanan (bisa diedit), dashboard, dan ekspor laporan. Tidak termasuk fitur multi-role, transfer antar pengguna, notifikasi email, atau deployment produksi.
 
 ## 2. Teknologi yang digunakan
 
@@ -67,11 +67,11 @@ sequenceDiagram
 | Tabel | Kolom utama | Keterangan |
 |---|---|---|
 | `users` | `id`, `nama`, `email` UNIQUE, `password`, `created_at` | Password berupa hash bcrypt |
-| `kategori` | `id`, `nama`, `tipe` (`masuk`/`keluar`) | 6 kategori awal dari `init.sql` |
+| `kategori` | `id`, `nama`, `tipe` (`masuk`/`keluar`), `grup` (`Harian`/`Urgent`/NULL) | 6 kategori awal + 1 kategori khusus `__BATAS_TOTAL__` |
 | `transaksi` | `id`, `user_id`, `kategori_id`, `tipe`, `nominal > 0`, `tanggal DATE`, `catatan` | `user_id` REFERENCES users, cascade on delete |
-| `anggaran` | `id`, `user_id`, `kategori_id`, `bulan CHAR(7)`, `batas > 0` | UNIQUE `(user_id, kategori_id, bulan)` |
+| `anggaran` | `id`, `user_id`, `kategori_id`, `bulan CHAR(7)`, `batas > 0` | UNIQUE `(user_id, kategori_id, bulan)`; dipakai juga untuk batas total per bulan |
 
-Kategori awal: Gaji, Uang Saku (`masuk`); Makan, Transport, Belanja, Hiburan (`keluar`).
+Kategori awal: Gaji, Uang Saku (`masuk`); Makan, Transport (`keluar`, Harian); Belanja, Hiburan (`keluar`, Urgent). Kategori `__BATAS_TOTAL__` disembunyikan dari form transaksi dan dipakai sebagai satu baris batas total per user per bulan (default Rp 1.000.000).
 
 ### 3.4 Konfigurasi dan keamanan
 
@@ -134,15 +134,15 @@ Kategori awal: Gaji, Uang Saku (`masuk`); Makan, Transport, Belanja, Hiburan (`k
 
 **Verifikasi:** tanpa session 401; 6 kategori; nominal 0 ditolak 400; POST 201; user kedua mendapat 404 saat GET/PUT/DELETE data user pertama. Uji browser: tambah `75.000`, edit menjadi `80.000`, hapus hingga baris hilang; urutan request GET → POST → GET → PUT → GET → DELETE → GET, tanpa error console.
 
-### Langkah 7 — Dashboard dan alert anggaran
+### Langkah 7 — Dashboard dan batas total
 
-**Tujuan:** merangkum keuangan bulan berjalan dan memberi peringatan anggaran.
+**Tujuan:** merangkum keuangan bulan berjalan dan memberi peringatan saat total pengeluaran melebihi batas.
 
-**Dibuat/diubah:** `routes/dashboard.js`, `routes/anggaran.js`, `components/AlertAnggaran.jsx`, `pages/Dashboard.jsx`, `App.jsx`, `index.css`, `index.js`.
+**Dibuat/diubah:** `routes/dashboard.js`, `routes/anggaran.js`, `utils/batasTotal.js`, `components/AlertAnggaran.jsx`, `components/BatasTotal.jsx`, `pages/Dashboard.jsx`, `pages/Beranda.jsx`, `App.jsx`, `index.css`, `index.js`, `db/init.sql`.
 
-**Hasil:** agregasi `SUM(...) FILTER` untuk pemasukan/pengeluaran; perbandingan pengeluaran per kategori terhadap tabel `anggaran`; alert dikirim sebagai array teks ke komponen lewat props; batas disimpan dengan UPSERT.
+**Hasil:** dashboard menampilkan total masuk/keluar/saldo dan pengeluaran per kategori (grup Harian/Urgent, tanpa batas per kategori). Batas total disimpan satu baris per user per bulan lewat kategori khusus `__BATAS_TOTAL__` (default Rp 1.000.000); tombol **Edit Batas** meng-update baris bulan yang sama. Alert tampil sebagai `Melebihi batas Rp ...` saat terlampaui dan hilang otomatis saat batas aman.
 
-**Verifikasi:** pemasukan 2.000.000, pengeluaran 600.000, saldo 1.400.000, alert `Makan: 600000 melebihi batas 500000`. Batas diubah ke 700.000 → alert hilang; dikembalikan ke 500.000 → alert muncul lagi. Dashboard user kedua tetap 0. Batas `0` ditolak 400. Uji browser menunjukkan perubahan alert secara langsung.
+**Verifikasi:** API embedded Postgres lulus skenario: default `1000000/1000000/[]`, pengeluaran 1.200.000 → `-200000 ["Melebihi batas Rp 200.000"]`, edit ke 1.500.000 → aman, turun ke 1.000.000 → alert lagi; `/api/kategori` tidak memuat `__BATAS_TOTAL__`. Uji browser: Edit Batas 1.500.000 menampilkan sisa Rp 300.000, turun ke 1.000.000 menampilkan alert; 0 error console.
 
 ### Langkah 8 — Laporan PDF dan Excel
 
@@ -167,9 +167,9 @@ Kategori awal: Gaji, Uang Saku (`masuk`); Makan, Transport, Belanja, Hiburan (`k
 | 7 | Validasi nominal 0 dan batas 0 | 400 | ✅ |
 | 8 | Isolasi data antar pengguna | 404 untuk user lain | ✅ |
 | 9 | CRUD browser (tambah, edit, hapus) | 201 / 200 / 200 | ✅ |
-| 10 | Dashboard dan alert | angka benar, alert muncul/hilang | ✅ |
+| 10 | Batas total & alert | default 1jt, alert saat terlampaui, edit naik/turun benar | ✅ |
 | 11 | Laporan PDF dan Excel | file valid, unduh berhasil | ✅ |
-| 12 | Build frontend | sukses, 23 modul | ✅ |
+| 12 | Build frontend | sukses, 24 modul | ✅ |
 | 13 | `npm audit` backend | 0 kerentanan | ✅ |
 | 14 | Error console browser | tidak ada | ✅ |
 
@@ -184,6 +184,7 @@ Docker tidak tersedia di mesin pengembangan, sehingga pengujian database memakai
 | Docker tidak tersedia untuk uji integrasi | Memakai PostgreSQL embedded dengan skema `init.sql` yang sama |
 | Paket `xlsx` di npm memiliki advisory keamanan | Memasang rilis resmi SheetJS 0.20.3 dari CDN |
 | Backend uji kadang belum siap saat browser dibuka | Menunggu respons 404 dari endpoint dummy sebelum interaksi |
+| Vite proxy lama mengarah ke port backend salah saat uji | `vite.config.js` proxy `/api` mengikuti `VITE_API_URL`/env fallback 5000 |
 
 ## 7. Kesimpulan dan saran
 
@@ -210,7 +211,9 @@ keuangan-pribadi/
 │       ├── config.js
 │       ├── db.js
 │       ├── middleware/auth.js
-│       ├── utils/bulan.js
+│       ├── utils/
+│       │   ├── bulan.js
+│       │   └── batasTotal.js
 │       └── routes/
 │           ├── auth.js
 │           ├── health.js
@@ -231,6 +234,7 @@ keuangan-pribadi/
         ├── components/
         │   ├── Header.jsx
         │   ├── AlertAnggaran.jsx
+        │   ├── BatasTotal.jsx
         │   └── UnduhLaporan.jsx
         └── pages/
             ├── Login.jsx

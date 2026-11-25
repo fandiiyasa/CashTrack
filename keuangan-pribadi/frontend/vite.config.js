@@ -4,15 +4,13 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react()],
   server: {
-  host: true,
-  proxy: {
-    '/api': {
-      target: 'http://backend:5000', // Ubah dari http://localhost:5000
-      changeOrigin: true,
+    host: '0.0.0.0',
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_URL || 'http://localhost:5000',
+        changeOrigin: true,
+      },
     },
   },
-},
 });
-
-
-

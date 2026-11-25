@@ -25,9 +25,11 @@
 | POST | `/api/transaksi` | Ya | Buat transaksi |
 | PUT | `/api/transaksi/:id` | Ya | Ubah transaksi |
 | DELETE | `/api/transaksi/:id` | Ya | Hapus transaksi |
-| GET | `/api/dashboard` | Ya | Ringkasan dan alert bulan berjalan |
-| GET | `/api/anggaran` | Ya | Daftar batas anggaran |
-| POST | `/api/anggaran` | Ya | Buat/perbarui batas anggaran |
+| GET | `/api/dashboard` | Ya | Ringkasan, batas total, dan alert bulan berjalan |
+| GET | `/api/anggaran/total` | Ya | Ambil batas total/pengeluaran/sisa bulan |
+| POST | `/api/anggaran/total` | Ya | Simpan batas total (update baris bulan yang sama) |
+| GET | `/api/anggaran` | Ya | Daftar batas per kategori (lama, tanpa `__BATAS_TOTAL__`) |
+| POST | `/api/anggaran` | Ya | UPSERT batas per kategori (lama; tolak `__BATAS_TOTAL__`) |
 | GET | `/api/laporan/pdf` | Ya | Unduh laporan PDF |
 | GET | `/api/laporan/excel` | Ya | Unduh laporan Excel |
 
@@ -116,16 +118,18 @@ Endpoint ini juga memakai `auth`, jadi tanpa cookie akan mengembalikan `401`.
 
 ### `GET /api/kategori`
 
+Mengembalikan kategori untuk form transaksi. Kategori khusus `__BATAS_TOTAL__` disembunyikan.
+
 **200 OK**
 
 ```json
 [
-  { "id": 1, "nama": "Gaji", "tipe": "masuk" },
-  { "id": 2, "nama": "Uang Saku", "tipe": "masuk" },
-  { "id": 3, "nama": "Makan", "tipe": "keluar" },
-  { "id": 4, "nama": "Transport", "tipe": "keluar" },
-  { "id": 5, "nama": "Belanja", "tipe": "keluar" },
-  { "id": 6, "nama": "Hiburan", "tipe": "keluar" }
+  { "id": 1, "nama": "Gaji", "tipe": "masuk", "grup": null },
+  { "id": 2, "nama": "Uang Saku", "tipe": "masuk", "grup": null },
+  { "id": 3, "nama": "Makan", "tipe": "keluar", "grup": "Harian" },
+  { "id": 4, "nama": "Transport", "tipe": "keluar", "grup": "Harian" },
+  { "id": 5, "nama": "Belanja", "tipe": "keluar", "grup": "Urgent" },
+  { "id": 6, "nama": "Hiburan", "tipe": "keluar", "grup": "Urgent" }
 ]
 ```
 
@@ -223,7 +227,7 @@ curl -b cookie.txt http://localhost:5000/api/transaksi
 
 ### `GET /api/dashboard`
 
-Menghitung ringkasan bulan berjalan (UTC) dan membandingkan pengeluaran per kategori dengan batas anggaran pada bulan yang sama.
+Menghitung ringkasan bulan berjalan (UTC) dan status **Batas Total** pengeluaran bulan itu.
 
 **200 OK**
 
@@ -231,64 +235,64 @@ Menghitung ringkasan bulan berjalan (UTC) dan membandingkan pengeluaran per kate
 {
   "bulan": "2026-11",
   "total_masuk": 2000000,
-  "total_keluar": 600000,
-  "saldo": 1400000,
+  "total_keluar": 1200000,
+  "saldo": 800000,
+  "batas_total": 1000000,
+  "sisa_total": -200000,
   "per_kategori": [
-    {
-      "kategori_id": 3,
-      "nama": "Makan",
-      "total": 600000,
-      "batas": 500000,
-      "terlampaui": true
-    }
+    { "kategori_id": 3, "nama": "Makan", "grup": "Harian", "total": 1200000 },
+    { "kategori_id": 4, "nama": "Transport", "grup": "Harian", "total": 0 }
   ],
-  "alert": ["Makan: 600000 melebihi batas 500000"]
+  "alert": ["Melebihi batas Rp 200.000"]
 }
 ```
 
 Keterangan:
 
-- Hanya kategori bertipe `keluar` yang muncul di `per_kategori`.
-- `batas` bernilai `null` bila pengguna belum menetapkan anggaran.
-- `alert` hanya berisi kategori dengan `terlampaui: true`.
+- `batas_total` default Rp 1.000.000 bila belum pernah disetel; disimpan 1 baris per user per bulan (kategori khusus `__BATAS_TOTAL__`).
+- `sisa_total = batas_total - total_keluar`; nilai negatif berarti terlampaui.
+- `alert` berisi satu pesan `Melebihi batas Rp ...` saat terlampaui, kosong saat aman.
+- `per_kategori` hanya pengelompokan Harian/Urgent, tanpa batas per kategori.
 
 ---
 
 ## Anggaran
 
-### `GET /api/anggaran`
+### `GET /api/anggaran/total`
+
+Query parameter opsional `bulan=YYYY-MM` (default bulan berjalan).
 
 **200 OK**
 
 ```json
-[
-  {
-    "id": 1,
-    "kategori_id": 3,
-    "kategori_nama": "Makan",
-    "bulan": "2026-11",
-    "batas": 500000
-  }
-]
+{
+  "bulan": "2026-11",
+  "batas": 1000000,
+  "pengeluaran": 1200000,
+  "sisa": -200000,
+  "terlampaui": true
+}
 ```
 
-### `POST /api/anggaran`
+### `POST /api/anggaran/total`
 
-Body:
+Body: `{ "batas": 1500000, "bulan": "2026-11" }` (`bulan` opsional, default bulan berjalan).
 
-```json
-{ "kategori_id": 3, "bulan": "2026-11", "batas": 500000 }
-```
+Menyimpan ulang **memperbarui baris yang sama** untuk user+bulan (bukan menambah baris baru). Batas awal otomatis Rp 1.000.000 jika baris belum ada.
 
-Menyimpan dengan UPSERT pada kombinasi `(user_id, kategori_id, bulan)`, sehingga mengirim ulang batas akan memperbarui baris yang sama.
+**200 OK** — mengembalikan objek ringkasan yang sama seperti GET.
 
-**201 Created**
+**Error:** `400` jika format bulan salah atau `batas <= 0`.
 
-```json
-{ "id": 1, "kategori_id": 3, "bulan": "2026-11", "batas": 500000 }
-```
+### `GET /api/anggaran` (lama, batas per kategori)
 
-**Error:** `400` jika `kategori_id`/`bulan` kosong, format bulan bukan `YYYY-MM`, atau `batas <= 0`.
+Mengembalikan batas per kategori milik user; kategori khusus `__BATAS_TOTAL__` disembunyikan.
+
+### `POST /api/anggaran` (lama, UPSERT per kategori)
+
+Body: `{ "kategori_id": 3, "bulan": "2026-11", "batas": 500000 }`.
+
+UPSERT pada `(user_id, kategori_id, bulan)`. **400** jika mencoba menyimpan kategori `__BATAS_TOTAL__` (`Gunakan /api/anggaran/total untuk batas total`) atau validasi gagal.
 
 ---
 
