@@ -30,7 +30,7 @@ CREATE TABLE transaksi (
   catatan TEXT
 );
 
--- Batas pengeluaran per kategori per bulan (format bulan: YYYY-MM).
+-- Batas total pengeluaran per bulan (format bulan: YYYY-MM).
 CREATE TABLE anggaran (
   id SERIAL PRIMARY KEY,
   user_id INT REFERENCES users(id) ON DELETE CASCADE,

@@ -3,7 +3,6 @@ import { rentangBulan } from './bulan.js';
 
 // Kategori khusus untuk batas total; tidak boleh dipakai sebagai kategori transaksi.
 export const NAMA_KATEGORI_TOTAL = '__BATAS_TOTAL__';
-export const BATAS_DEFAULT = 1000000;
 
 // Cari id kategori khusus. Bila database lama belum memilikinya, dibuat otomatis.
 export async function idKategoriTotal() {
@@ -17,21 +16,9 @@ export async function idKategoriTotal() {
   return dibuat.rows[0].id;
 }
 
-// Pastikan satu baris batas untuk kombinasi user–bulan; batas awal memakai default.
-export async function pastikanBatasTotal(user_id, bulan) {
-  const kategori_id = await idKategoriTotal();
-  await pool.query(
-    `INSERT INTO anggaran (user_id, kategori_id, bulan, batas)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (user_id, kategori_id, bulan) DO NOTHING`,
-    [user_id, kategori_id, bulan, BATAS_DEFAULT]
-  );
-  return kategori_id;
-}
-
-// Ringkasan batas total: sisa negatif berarti pengeluaran sudah melebihi batas.
+// Ringkasan batas total bulanan. batas null berarti user belum menentukan batas.
 export async function ringkasanBatasTotal(user_id, bulan) {
-  const kategori_id = await pastikanBatasTotal(user_id, bulan);
+  const kategori_id = await idKategoriTotal();
   const { awal, akhir } = rentangBulan(bulan);
 
   const [batas, pengeluaran] = await Promise.all([
@@ -48,8 +35,20 @@ export async function ringkasanBatasTotal(user_id, bulan) {
     ),
   ]);
 
-  const nilaiBatas = Number(batas.rows[0].batas);
   const totalPengeluaran = Number(pengeluaran.rows[0].total);
+  const barisBatas = batas.rows[0];
+
+  if (!barisBatas) {
+    return {
+      bulan,
+      batas: null,
+      pengeluaran: totalPengeluaran,
+      sisa: null,
+      terlampaui: false,
+    };
+  }
+
+  const nilaiBatas = Number(barisBatas.batas);
   const sisa = nilaiBatas - totalPengeluaran;
 
   return {
@@ -63,10 +62,12 @@ export async function ringkasanBatasTotal(user_id, bulan) {
 
 // Simpan ulang selalu memperbarui baris bulan yang sama (bukan menambah baris baru).
 export async function simpanBatasTotal(user_id, bulan, batas) {
-  const kategori_id = await pastikanBatasTotal(user_id, bulan);
+  const kategori_id = await idKategoriTotal();
   await pool.query(
-    `UPDATE anggaran SET batas = $4
-     WHERE user_id = $1 AND kategori_id = $2 AND bulan = $3`,
+    `INSERT INTO anggaran (user_id, kategori_id, bulan, batas)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id, kategori_id, bulan)
+     DO UPDATE SET batas = EXCLUDED.batas`,
     [user_id, kategori_id, bulan, batas]
   );
   return ringkasanBatasTotal(user_id, bulan);

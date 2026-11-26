@@ -36,7 +36,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header judul="Keuangan Pribadi" />
+      <Header judul="CashTrack"/>
       <main>
         {pengguna ? (
           <>
@@ -51,7 +51,7 @@ export default function App() {
             ) : halaman === 'beranda' ? (
               <Beranda pengguna={pengguna} onKeDashboard={() => setHalaman('dashboard')} />
             ) : (
-              <Dashboard onKeBeranda={() => setHalaman('beranda')} />
+              <Dashboard />
             )}
           </>
         ) : modeAuth === 'register' ? (

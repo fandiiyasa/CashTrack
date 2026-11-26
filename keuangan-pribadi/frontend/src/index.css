@@ -147,7 +147,7 @@ button:disabled {
 
 .ringkasan {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-top: 16px;
 }
@@ -164,123 +164,25 @@ button:disabled {
   font-size: 1.15rem;
 }
 
-.kartu small {
-  font-size: 0.8rem;
-}
-
-.kartu .tautan {
-  justify-self: start;
-  font-size: 0.85rem;
-}
-
-.teks-aman {
-  color: #15803d;
-}
-
-.teks-bahaya {
-  color: #b91c1c;
-}
-
-.kartu-batas {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
-  padding: 16px;
-  border-radius: 10px;
-  background: #eff6ff;
-}
-
-.kartu-batas div {
-  display: grid;
-  gap: 6px;
-}
-
-.kartu-batas strong {
-  font-size: 1.25rem;
-}
-
-.daftar-grup {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.grup-kartu {
-  padding: 16px;
-  border: 1px solid #dbeafe;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-
-.grup-kartu h4 {
-  margin: 0 0 8px;
-}
-
-.grup-kartu ul {
-  margin: 0;
-  padding-left: 20px;
-}
-
-.grup-kartu li {
-  margin: 4px 0;
-}
-
-.grup-kartu .kosong {
-  margin: 0;
-  color: #64748b;
-}
-
 h3 {
   margin-top: 24px;
 }
 
-.batas-total {
-  margin-top: 16px;
-  padding: 16px;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  background: #f8fafc;
+.badge-bahaya,
+.badge-aman {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
 }
 
-.batas-ringkas {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr) auto;
-  gap: 12px;
-  align-items: center;
+.badge-bahaya {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
-.batas-ringkas div {
-  display: grid;
-  gap: 6px;
-}
-
-.batas-ringkas span {
-  font-size: 0.85rem;
-  color: #475569;
-}
-
-.batas-ringkas strong {
-  font-size: 1.05rem;
-}
-
-.batas-ringkas button {
-  width: auto;
-  justify-self: end;
-}
-
-.batas-total .form {
-  margin-top: 16px;
-}
-
-.teks-bahaya {
-  color: #b91c1c;
-}
-
-.teks-aman {
-  color: #15803d;
+.badge-aman {
+  background: #dcfce7;
+  color: #166534;
 }
 
 .unduh {
@@ -340,4 +242,83 @@ h3 {
 .tombol-dashboard {
   display: flex;
   margin-top: 24px;
+}
+
+.batas-total {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.batas-total h3 {
+  margin-top: 0;
+}
+
+.batas-ringkas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.batas-ringkas > div {
+  display: grid;
+  gap: 4px;
+}
+
+.batas-ringkas span {
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.batas-ringkas strong {
+  font-size: 1.1rem;
+}
+
+.batas-ringkas button {
+  width: auto;
+}
+
+.teks-bahaya {
+  color: #b91c1c;
+}
+
+.teks-aman {
+  color: #15803d;
+}
+
+.grup-kategori {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.kartu-grup {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.kartu-grup h4 {
+  margin: 0 0 8px;
+}
+
+.kartu-grup ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.kartu-grup li {
+  margin: 4px 0;
+}
+
+@media (max-width: 640px) {
+  .batas-ringkas,
+  .grup-kategori {
+    grid-template-columns: 1fr;
+  }
 }

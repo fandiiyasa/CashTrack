@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 
 const API_URL = '';
 const FORM_KOSONG = { kategori_id: '', tipe: 'keluar', nominal: '', tanggal: '', catatan: '' };
-const PREFIX_GRUP = /^(Harian|Urgent) - /;
 
 // Pembantu fetch: cookie session ikut dikirim dan error API dilempar sebagai Error.
 async function ambilApi(path, opsi = {}) {
@@ -99,20 +98,8 @@ export default function Transaksi() {
     }
   }
 
-  // Sembunyikan kategori dasar yang sudah dikelompokkan (mis. "Makan" setelah
-  // menjadi "Harian - Makan") agar tidak ada kategori ganda. Kategori yang
-  // belum dikelompokkan dan kategori yang sedang diedit tetap ditampilkan.
-  const subTerkelompok = new Set(
-    kategori
-      .filter((item) => item.tipe === 'keluar' && PREFIX_GRUP.test(item.nama))
-      .map((item) => item.nama.replace(PREFIX_GRUP, ''))
-  );
-  const pilihanKategori = kategori.filter((item) => {
-    if (item.tipe !== 'keluar') return true;
-    if (PREFIX_GRUP.test(item.nama)) return true;
-    if (String(item.id) === form.kategori_id) return true;
-    return !subTerkelompok.has(item.nama);
-  });
+  // Semua kategori pengeluaran tersedia; grup hanya untuk tampilan Dashboard.
+  const pilihanKategori = kategori;
 
   return (
     <section className="halaman">

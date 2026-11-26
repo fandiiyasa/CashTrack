@@ -40,6 +40,9 @@ services:
     build: ./frontend
     container_name: keuangan-frontend
     restart: unless-stopped
+    environment:
+      # Proxy Vite di dalam container harus menunjuk ke service backend.
+      PROXY_TARGET: http://backend:5000
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     depends_on:
